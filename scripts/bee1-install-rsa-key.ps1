@@ -1,69 +1,92 @@
-# Bee-1 RSA Key Install — connects bee-1 TO VPS for reverse tunnel
+# Bee-1 RSA Key Install — authenticates bee-1 TO VPS for reverse tunnel
 Write-Host "=== Installing bee1_rsa key ===" -ForegroundColor Cyan
 
-$keyContent = @"
------BEGIN OPENSSH PRIVATE KEY-----
-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
------END OPENSSH PRIVATE KEY-----
-"@
-
-$keyPath = "$env:USERPROFILE\.ssh\bee1_rsa"
 $sshDir = "$env:USERPROFILE\.ssh"
 if (!(Test-Path $sshDir)) { New-Item -ItemType Directory -Path $sshDir -Force | Out-Null }
 
-# Write with Unix line endings (critical for SSH keys)
+$keyPath = "$env:USERPROFILE\.ssh\bee1_rsa"
+
+# Write key with Unix line endings (critical for SSH)
+$keyContent = @"
+-----BEGIN OPENSSH PRIVATE KEY-----
+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
+-----END OPENSSH PRIVATE KEY-----
+"@
+
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-$keyBytes = $utf8NoBom.GetBytes($keyContent.Replace("`r`n", "`n").Replace("`r", "`n").TrimEnd() + "`n")
-[System.IO.File]::WriteAllBytes($keyPath, $keyBytes)
+$normalized = $keyContent.Replace("`r`n","`n").Replace("`r","`n").TrimEnd() + "`n"
+[System.IO.File]::WriteAllBytes($keyPath, $utf8NoBom.GetBytes($normalized))
 
-# Set permissions - only owner can read
+# Strict permissions
 icacls $keyPath /inheritance:r /grant "${env:USERNAME}:(R)" /grant "SYSTEM:(R)" 2>$null
-
 Write-Host "Key installed at $keyPath" -ForegroundColor Green
-Write-Host "Test with: ssh -i $keyPath -o StrictHostKeyChecking=no claude@65.109.230.136 echo OK" -ForegroundColor Yellow
+
+# Update reverse tunnel to use new key
+$tunnelScript = "$env:USERPROFILE\claude-workspace\scripts\tunnel.ps1"
+if (Test-Path $tunnelScript) {
+    $content = Get-Content $tunnelScript -Raw
+    $content = $content -replace 'bee_id','bee1_rsa'
+    Set-Content -Path $tunnelScript -Value $content
+    Write-Host "tunnel.ps1 updated to use bee1_rsa" -ForegroundColor Green
+}
+
+# Restart tunnel
+Stop-ScheduledTask -TaskName "BeeReverseTunnel" -ErrorAction SilentlyContinue
+Start-Sleep 2
+Start-ScheduledTask -TaskName "BeeReverseTunnel"
+Write-Host "Tunnel restarted with new key" -ForegroundColor Green
+
+# Quick test
+Write-Host "Testing connection to VPS..." -ForegroundColor Yellow
+$result = ssh -o StrictHostKeyChecking=no -o ConnectTimeout=8 -i $keyPath claude@65.109.230.136 "echo VPS_OK" 2>&1
+if ($result -match "VPS_OK") {
+    Write-Host "SUCCESS: bee-1 can reach VPS!" -ForegroundColor Green
+} else {
+    Write-Host "Result: $result" -ForegroundColor Red
+}
