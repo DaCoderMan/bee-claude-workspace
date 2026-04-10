@@ -1,118 +1,108 @@
-#Requires -RunAsAdministrator
-<#
-.SYNOPSIS
-    Bee Cluster — Windows machine setup for bee-1 / sparta-1
-.DESCRIPTION
-    Sets up OpenSSH server, adds VPS pubkey, installs Node.js,
-    Claude Code CLI, and clones the workspace repo.
-    Run as Administrator on each Windows machine.
-#>
-
-param(
-    [string]$VpsPubKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBwFCMGSGNSgmuJqesSloYSxNpgPPZVVZig39bVPFRJ5 claude@hive"
-)
-
-$ErrorActionPreference = "Stop"
+# Bee Cluster - Windows Machine Setup Script
+# Run as Administrator in PowerShell:
+# irm https://raw.githubusercontent.com/DaCoderMan/bee-claude-workspace/main/scripts/setup-windows.ps1 | iex
 
 Write-Host "=== Bee Cluster Windows Setup ===" -ForegroundColor Cyan
 
-# --- 1. Install OpenSSH Server ---
-Write-Host "`n[1/6] Installing OpenSSH Server..." -ForegroundColor Yellow
-$sshCap = Get-WindowsCapability -Online | Where-Object Name -like 'OpenSSH.Server*'
-if ($sshCap.State -ne 'Installed') {
-    Add-WindowsCapability -Online -Name 'OpenSSH.Server~~~~0.0.1.0'
-    Write-Host "  OpenSSH Server installed." -ForegroundColor Green
+# 1. Add VPS SSH pubkey to authorized_keys
+Write-Host "Setting up SSH authorized_keys..." -ForegroundColor Yellow
+$sshDir = "$env:USERPROFILE\.ssh"
+$authKeys = "$sshDir\authorized_keys"
+$vpsKey = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCYYc+sL2Jv2V8Ce80DA6ARVBxccsktxuKdQQoVFQaDuiTfLFZGe92OI9OzWDP7CkW9qjn3MEGK7A5CBW1JEofcP1/DLYtg7SZvk8w3v3QYBPflB1+uEx048DqJmGrgYB9wTib9Bhhc1H3P0cjQh7Cd4JNE+4L9qvAL0PCO9im98jDnQSERFbjyQWYwh0PNRhtDQiWlGH9bRqzN3r0bSp4aCjnCwwa23hExbmUmovI5fEXayMLlrvh29CNOzKp6wHhaDqnfq+xteKsQpavyfgu/ct18NdTUNOCaoVUoexxddqh07vIBIrCiipftEcDDnRmiAFBcmJ1S4GgOn0BFINcV36TB7WSpIG0Y6SBLXMqvg5/QCrAb1OLHDMR69VRY2gu+yNmfPVMsTZCBWHb0KJeRpnsQDP4yhi3zgzm8Ucr08CvyVtSOQQBU13DG2NF1hijkXcubQKHsD/eWz9kjM3YXFkJLCkgrO/S1bwlWHuq+53H+czuB60fmr1xUcs7oUZU5ZKHl/5y6ZdIU/jRTUW9cS1kGlf+K69R6ovnbqgpQYjVoQi8n8t3M5LH0bXVlgO8N1B2HMYsef14bQ94ctDNebrUe8Df857+ZLgAaqxaryty2lykVOdcaOThNmOzgWu/LQhw5C7wPCndyoyfNpadHPEimM0H/Y+qjA8q8octQ4Q== claude@workitulife-prod"
+
+if (!(Test-Path $sshDir)) { New-Item -ItemType Directory -Path $sshDir -Force | Out-Null }
+if (!(Test-Path $authKeys)) { New-Item -ItemType File -Path $authKeys -Force | Out-Null }
+$existing = Get-Content $authKeys -ErrorAction SilentlyContinue
+if ($existing -notcontains $vpsKey) {
+    Add-Content -Path $authKeys -Value $vpsKey
+    Write-Host "VPS pubkey added to authorized_keys" -ForegroundColor Green
 } else {
-    Write-Host "  OpenSSH Server already installed." -ForegroundColor Green
+    Write-Host "VPS pubkey already present" -ForegroundColor Green
 }
 
-# Start and enable sshd
+# 2. Enable OpenSSH Server
+Write-Host "Enabling OpenSSH Server..." -ForegroundColor Yellow
+$sshFeature = Get-WindowsCapability -Online | Where-Object Name -like 'OpenSSH.Server*'
+if ($sshFeature.State -ne 'Installed') {
+    Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+    Write-Host "OpenSSH Server installed" -ForegroundColor Green
+} else {
+    Write-Host "OpenSSH Server already installed" -ForegroundColor Green
+}
 Set-Service -Name sshd -StartupType Automatic
-Start-Service sshd
-Write-Host "  sshd service started and set to auto-start." -ForegroundColor Green
+Start-Service sshd -ErrorAction SilentlyContinue
+Write-Host "sshd service started" -ForegroundColor Green
 
-# --- 2. Add VPS SSH public key ---
-Write-Host "`n[2/6] Adding VPS SSH public key..." -ForegroundColor Yellow
-$authKeysDir = "$env:ProgramData\ssh"
-$authKeysFile = "$authKeysDir\administrators_authorized_keys"
+# Fix authorized_keys permissions for OpenSSH
+icacls $authKeys /inheritance:r /grant "SYSTEM:(F)" /grant "Administrators:(F)" /grant "${env:USERNAME}:(F)" 2>$null
 
-if (!(Test-Path $authKeysDir)) {
-    New-Item -ItemType Directory -Path $authKeysDir -Force | Out-Null
-}
+# 3. Create claude-workspace
+Write-Host "Creating claude-workspace..." -ForegroundColor Yellow
+$workspace = "$env:USERPROFILE\claude-workspace"
+New-Item -ItemType Directory -Path $workspace -Force | Out-Null
+New-Item -ItemType Directory -Path "$workspace\projects" -Force | Out-Null
+New-Item -ItemType Directory -Path "$workspace\scripts" -Force | Out-Null
+New-Item -ItemType Directory -Path "$workspace\temp" -Force | Out-Null
+Write-Host "Workspace created at $workspace" -ForegroundColor Green
 
-if (!(Test-Path $authKeysFile) -or !(Select-String -Path $authKeysFile -Pattern $VpsPubKey -Quiet)) {
-    Add-Content -Path $authKeysFile -Value $VpsPubKey
-    # Fix permissions — only SYSTEM and Administrators
-    icacls $authKeysFile /inheritance:r /grant "SYSTEM:(F)" /grant "BUILTIN\Administrators:(F)" | Out-Null
-    Write-Host "  VPS pubkey added to $authKeysFile" -ForegroundColor Green
+# 4. Check/Install Node.js
+Write-Host "Checking Node.js..." -ForegroundColor Yellow
+$nodeCheck = Get-Command node -ErrorAction SilentlyContinue
+if (!$nodeCheck) {
+    Write-Host "Installing Node.js via winget..." -ForegroundColor Yellow
+    winget install -e --id OpenJS.NodeJS --silent --accept-package-agreements --accept-source-agreements
+    $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
 } else {
-    Write-Host "  VPS pubkey already present." -ForegroundColor Green
+    Write-Host "Node.js already installed: $(node --version)" -ForegroundColor Green
 }
 
-# --- 3. Create C:\claude-workspace ---
-Write-Host "`n[3/6] Creating C:\claude-workspace..." -ForegroundColor Yellow
-if (!(Test-Path "C:\claude-workspace")) {
-    New-Item -ItemType Directory -Path "C:\claude-workspace" -Force | Out-Null
-    Write-Host "  Created C:\claude-workspace" -ForegroundColor Green
-} else {
-    Write-Host "  C:\claude-workspace already exists." -ForegroundColor Green
-}
-
-# --- 4. Install Node.js via winget ---
-Write-Host "`n[4/6] Checking Node.js..." -ForegroundColor Yellow
-$nodeInstalled = $false
-try {
-    $nodeVersion = node --version 2>$null
-    if ($nodeVersion) {
-        Write-Host "  Node.js $nodeVersion already installed." -ForegroundColor Green
-        $nodeInstalled = $true
-    }
-} catch {}
-
-if (!$nodeInstalled) {
-    Write-Host "  Installing Node.js LTS via winget..." -ForegroundColor Yellow
-    winget install OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements
-    # Refresh PATH
-    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
-    Write-Host "  Node.js installed. You may need to restart your terminal." -ForegroundColor Green
-}
-
-# --- 5. Install Claude Code CLI ---
-Write-Host "`n[5/6] Installing Claude Code CLI..." -ForegroundColor Yellow
-try {
-    $claudeVersion = npm list -g @anthropic-ai/claude-code 2>$null
-    if ($claudeVersion -match "claude-code") {
-        Write-Host "  Claude Code already installed globally." -ForegroundColor Green
-    } else {
-        throw "not installed"
-    }
-} catch {
+# 5. Install Claude Code CLI
+Write-Host "Installing Claude Code CLI..." -ForegroundColor Yellow
+$claudeCheck = Get-Command claude -ErrorAction SilentlyContinue
+if (!$claudeCheck) {
     npm install -g @anthropic-ai/claude-code
-    Write-Host "  Claude Code CLI installed." -ForegroundColor Green
-}
-
-# Create bee-claude.bat launcher
-$batPath = "C:\claude-workspace\bee-claude.bat"
-$batContent = "@echo off`r`nclaude --dangerously-skip-permissions %*"
-Set-Content -Path $batPath -Value $batContent -Encoding ASCII
-Write-Host "  Created $batPath" -ForegroundColor Green
-
-# --- 6. Clone workspace repo ---
-Write-Host "`n[6/6] Cloning workspace repo..." -ForegroundColor Yellow
-if (!(Test-Path "C:\claude-workspace\.git")) {
-    Push-Location "C:\claude-workspace"
-    git clone https://github.com/DaCoderMan/claude-workspace.git .
-    Pop-Location
-    Write-Host "  Repo cloned to C:\claude-workspace" -ForegroundColor Green
+    Write-Host "Claude Code installed" -ForegroundColor Green
 } else {
-    Push-Location "C:\claude-workspace"
-    git pull origin main
-    Pop-Location
-    Write-Host "  Repo already cloned, pulled latest." -ForegroundColor Green
+    Write-Host "Claude Code already installed: $(claude --version)" -ForegroundColor Green
 }
 
-Write-Host "`n=== Setup Complete ===" -ForegroundColor Cyan
-Write-Host "Next steps:"
-Write-Host "  1. Test SSH from VPS: ssh <username>@<tailscale-ip>"
-Write-Host "  2. Run: C:\claude-workspace\bee-claude.bat"
-Write-Host "  3. Set ANTHROPIC_API_KEY environment variable"
+# 6. Create bee-claude.bat wrapper
+$batPath = "$env:USERPROFILE\claude-workspace\bee-claude.bat"
+Set-Content -Path $batPath -Value "@echo off`r`nclaude --dangerously-skip-permissions %*"
+# Add to PATH
+$userPath = [System.Environment]::GetEnvironmentVariable("PATH", "User")
+if ($userPath -notlike "*claude-workspace*") {
+    [System.Environment]::SetEnvironmentVariable("PATH", "$userPath;$workspace", "User")
+}
+Write-Host "bee-claude.bat created" -ForegroundColor Green
+
+# 7. Clone/update workspace repo
+Write-Host "Syncing workspace repo..." -ForegroundColor Yellow
+$gitCheck = Get-Command git -ErrorAction SilentlyContinue
+if ($gitCheck) {
+    Set-Location $workspace
+    if (Test-Path "$workspace\.git") {
+        git pull 2>&1 | Out-Null
+    } else {
+        git clone https://github.com/DaCoderMan/bee-claude-workspace.git . 2>&1 | Out-Null
+    }
+    Write-Host "Workspace repo synced" -ForegroundColor Green
+} else {
+    Write-Host "git not found - install Git for Windows from git-scm.com" -ForegroundColor Yellow
+}
+
+# 8. Configure git identity
+if ($gitCheck) {
+    git config --global user.email "jonathanperlin@gmail.com"
+    git config --global user.name "Yonatan Perlin"
+}
+
+# Done
+Write-Host ""
+Write-Host "=== Setup Complete ===" -ForegroundColor Cyan
+Write-Host "Machine: $env:COMPUTERNAME" -ForegroundColor White
+Write-Host "User: $env:USERNAME" -ForegroundColor White
+Write-Host "Workspace: $workspace" -ForegroundColor White
+Write-Host "SSH: enabled (VPS can now connect)" -ForegroundColor Green
+Write-Host ""
+Write-Host "Next: restart PowerShell, then run: claude --dangerously-skip-permissions" -ForegroundColor Yellow
