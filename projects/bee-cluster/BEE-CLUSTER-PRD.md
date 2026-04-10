@@ -12,12 +12,13 @@ WhatsApp/Claude Chat (Yonatan)
    │  bee-backend · n8n · vault · PostgreSQL  │
    │  65.109.230.136 / Tailscale 100.127.x  │
    └──────────┬──────────────┬───────────────┘
-              │ Tailscale    │ Tailscale
+              │ Rev SSH :2222 │ Tailscale
     ┌─────────▼──┐    ┌──────▼────────┐
     │   bee-1    │    │   sparta-1    │
     │  Desktop   │    │   Notebook    │
     │  Windows   │    │   Windows     │
-    │ 100.94.x   │    │  100.116.x    │
+    │ R9 5900X   │    │  100.116.x    │
+    │  64GB RAM  │    │              │
     └────────────┘    └───────────────┘
               │              │
               └──────┬───────┘
@@ -33,7 +34,7 @@ WhatsApp/Claude Chat (Yonatan)
 | Machine | Role | CPU | RAM | OS | Tailscale |
 |---------|------|-----|-----|----|-----------|
 | VPS | Primary brain, always-on | 2 | 3.7GB | Linux | 100.127.175.67 |
-| bee-1 | Desktop compute, heavy tasks | ? | ? | Windows | 100.94.167.24 |
+| bee-1 | Desktop powerhouse, heavy tasks | AMD Ryzen 9 5900X (12-core) | 64GB | Windows | Reverse SSH tunnel :2222 |
 | sparta-1 | Mobile compute | AMD Ryzen 7 5825U | 13.8GB | Windows 11 | 100.116.216.124 |
 | iPhone | WhatsApp control, monitoring | - | - | iOS | 100.80.234.102 |
 
