@@ -34,7 +34,7 @@ WhatsApp/Claude Chat (Yonatan)
 |---------|------|-----|-----|----|-----------|
 | VPS | Primary brain, always-on | 2 | 3.7GB | Linux | 100.127.175.67 |
 | bee-1 | Desktop compute, heavy tasks | ? | ? | Windows | 100.94.167.24 |
-| sparta-1 | Mobile compute | ? | ? | Windows | 100.116.216.124 |
+| sparta-1 | Mobile compute | AMD Ryzen 7 5825U | 13.8GB | Windows 11 | 100.116.216.124 |
 | iPhone | WhatsApp control, monitoring | - | - | iOS | 100.80.234.102 |
 
 ## Clustering Rules
