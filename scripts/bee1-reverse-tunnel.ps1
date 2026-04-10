@@ -8,7 +8,7 @@ Write-Host "=== Setting up Bee-1 Reverse SSH Tunnel ===" -ForegroundColor Cyan
 $tunnelScript = @'
 while ($true) {
     Write-Host "$(Get-Date): Connecting reverse tunnel to VPS..."
-    $proc = Start-Process -FilePath "ssh" -ArgumentList "-o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=no -N -R 2222:localhost:22 claude@65.109.230.136 -i $env:USERPROFILE\.ssh\bee_id" -NoNewWindow -PassThru -Wait
+    $proc = Start-Process -FilePath "ssh" -ArgumentList "-o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=no -N -R 2222:localhost:22 claude@65.109.230.136 -i $env:USERPROFILE\.ssh\bee1_rsa" -NoNewWindow -PassThru -Wait
     Write-Host "$(Get-Date): Tunnel disconnected (exit $($proc.ExitCode)), reconnecting in 10s..."
     Start-Sleep 10
 }
